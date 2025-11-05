@@ -10,6 +10,7 @@ export class ClassPresidentService {
 
   // 후보 추가
   async addPresident(data: Omit<ClassPresidentCandidate, 'id' | 'count'>) {
+    
     await this.firebase.db.collection('class-president-candidates').add({ ...data, count: 0 });
     return true;
   }
@@ -20,7 +21,19 @@ export class ClassPresidentService {
     let query = ref.where('year', '==', year).where('semester', '==', semester)
       .where('grade','==',grade).where('classNum','==',classNum);
     const snapshot = await query.get();
-    return { list: snapshot.docs.map(doc => ({ number: doc.id, ...doc.data() })) };
+    return { list : snapshot.docs.map(doc => ({ number: doc.id, ...doc.data() }))}; 
+  }
+
+  //모든 후보 조회
+  async getAllPresidents() {
+    const ref = this.firebase.db.collection('class-president-candidates');
+    const snapshot = await ref.get();
+    const list: admin.firestore.DocumentData[] = [];
+
+    snapshot.forEach((doc) => {
+      list.push( doc.data() );
+    });
+    return { list };
   }
 
   // 개표결과 조회
@@ -33,7 +46,8 @@ export class ClassPresidentService {
     await this.firebase.db.collection('class-president-candidates').doc(number).update(update);
     return true;
   }
-   // 후보에 투표하면 count를 1 증가시킵니다 (원자적 연산)
+
+   // 후보에 투표하면 count를 1 증가
    async voteCandidate(id: string): Promise<void> {
     await this.firebase.db
       .collection('class-president-candidates')

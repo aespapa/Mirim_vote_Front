@@ -16,8 +16,4 @@ export class UpdateElectionSettingsDto {
   @IsOptional()
   @IsBoolean()
   autoClose?: boolean;
-
-  @IsOptional()
-  @IsISO8601()
-  autoCloseAt?: string;
 }

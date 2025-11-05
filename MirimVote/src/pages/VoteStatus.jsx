@@ -150,6 +150,7 @@ const ManagementBtnBox = styled.div`
     text-align: center;
     height: 40px;
     line-height: 40px;
+    
 `
 
 const ManagementBtn = styled.button`
@@ -162,6 +163,7 @@ const ManagementBtn = styled.button`
     border: 1px solid #222222;
     border-radius: 0px 0px 16px 16px;
     text-decoration: none;
+    cursor: pointer;
 `
 
 const Label = styled.p`
@@ -186,100 +188,118 @@ const SubLabel = styled.p`
 
 `
 
-export default function VoteResult(info = null) {
-    // 예시 데이터
-    const list = [
-        {
-            type: 'class',
-            year: 2025,
-            semester: 1,
-            grade: 2,
-            class: 4,
-            totalVoters: 17,
-            totalVotes: 17,
-            status: "종료",
-            candidates: [
-                {
-                    number: 1,
-                    names: "김민재",
-                    votes: 4,
-                },
-                {
-                    number: 2,
-                    names: "육준성",
-                    votes: 10,
-                },
-                {
-                    number: 3,
-                    names: "이민준",
-                    votes: 3,
-                }
-            ]
-        },
-        {
-            type: 'class',
-            year: 2025,
-            semester: 2,
-            grade: 2,
-            class: 4,
-            totalVoters: 17,
-            totalVotes: 17,
-            status: "종료",
-            candidates: [
-                {
-                    number: 1,
-                    names: "김민재",
-                    votes: 4,
-                },
-                {
-                    number: 2,
-                    names: "육준성",
-                    votes: 10,
-                },
-                {
-                    number: 3,
-                    names: "이민준",
-                    votes: 3,
-                }
-            ]
-        }
-    ];
-
+export default function VoteResult() {
+    const [voteStatusList, setVoteStatusList] = useState([]);
     const [userData, setUserData] = useState(null);
-    const [status, setStatus] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const uid = user.uid;
                 const fetchedData = await getUser(uid);
                 setUserData(fetchedData.user);
-                setLoading(false);
             } else {
                 console.log('redirecting to /');
                 window.location.href = '/';
             }
         });
-
         return () => unsubscribe();
-    }, [])
+    }, []);
 
+    useEffect(() => {
+        const fetchAllVoteStatuses = async () => {
+            try {
+                setLoading(true);
+                const schoolResponse = await fetch(`http://localhost:3000/apivoteschool-president/all`);
+                const schoolData = await schoolResponse.json();
+
+                const classResponse = await fetch(`http://localhost:3000/apivoteclass-president/all`);
+                const classData = await classResponse.json();
+
+                const allVotes = [];
+
+                // Process school president votes
+                if (schoolData && schoolData.list) {
+                    const uniqueSchoolVotes = new Map();
+                    schoolData.list.forEach(item => {
+                        const key = `${item.year}`;
+                        if (!uniqueSchoolVotes.has(key)) {
+                            uniqueSchoolVotes.set(key, { type: 'school', year: item.year, candidates: [] });
+                        }
+                        uniqueSchoolVotes.get(key).candidates.push(item);
+                    });
+                    allVotes.push(...Array.from(uniqueSchoolVotes.values()));
+                }
+
+                // Process class president votes
+                if (classData && classData.list) {
+                    const uniqueClassVotes = new Map();
+                    classData.list.forEach(item => {
+                        const key = `${item.year}_${item.semester}_${item.grade}_${item.classNum}`;
+                        if (!uniqueClassVotes.has(key)) {
+                            uniqueClassVotes.set(key, { type: 'class', year: item.year, semester: item.semester, grade: item.grade, classNum: item.classNum, candidates: [] });
+                        }
+                        uniqueClassVotes.get(key).candidates.push(item);
+                    });
+                    allVotes.push(...Array.from(uniqueClassVotes.values()));
+                }
+
+                const detailedVoteStatuses = await Promise.all(allVotes.map(async (vote) => {
+                    let electionId;
+                    if (vote.type === 'school') {
+                        electionId = `s_${vote.year}`;
+                    } else {
+                        electionId = `c_${vote.year}${vote.semester}${vote.grade}${vote.classNum}`;
+                    }
+
+                    const settingsResponse = await fetch(`http://localhost:3000/settings?electionId=${electionId}`);
+                    const settingsData = await settingsResponse.json();
+
+                    // Calculate total votes from candidates
+                    const totalVotes = vote.candidates.reduce((sum, c) => sum + (c.count || 0), 0);
+
+                    return {
+                        ...vote,
+                        electionId: electionId,
+                        totalVotes: totalVotes,
+                        totalVoters: settingsData.settings?.voterCount || 0, // Get from settings
+                        status: settingsData.settings?.active ? "진행중" : "종료", // Get from settings
+                        candidates: vote.candidates.map(c => ({
+                            number: c.number,
+                            names: c.name || `${c.name1} / ${c.name2}`,
+                            votes: c.count || 0,
+                        })),
+                    };
+                }));
+
+                setVoteStatusList(detailedVoteStatuses);
+            } catch (e) {
+                setError(e.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (userData) { // Fetch data only after user data is loaded
+            fetchAllVoteStatuses();
+        }
+    }, [userData]); // Re-run when userData changes
 
 
     if (loading) return null; // 초기 렌더링 없이 대기
 
     const renderVotes = () => {
-        return list.map((data, index) => {
-            const percent = Math.round((data.totalVotes / data.totalVoters) * 100);
-            const candidatePercents = data.candidates.map(c => data.totalVotes === 0 ? 0 : Math.round((c.votes / data.totalVotes) * 100));
-            const label = data.type == 'school' ? `전교회장 선거` : `${data.semester}학기 학급회장 선거`;
+        return voteStatusList.map((data, index) => {
+            const percent = data.totalVoters === 0 ? 0 : Math.round((data.totalVotes / data.totalVoters) * 100);
+            const candidatePercents = data.totalVotes === 0 ? data.candidates.map(() => 0) : data.candidates.map(c => Math.round((c.votes / data.totalVotes) * 100));
+            const label = data.type === 'school' ? `전교회장 선거` : `${data.semester}학기 학급회장 선거`;
+
             return (
                 <States key={index}>
                     <StatusTitle>
                         <Label>{label}</Label>
-                        <SubLabel>{`${data.year}학년도 ${data.type == 'class' ? `${data.grade}학년 ${data.class}반` : '' } `}</SubLabel>
+                        <SubLabel>{`${data.year}학년도 ${data.type === 'class' ? `${data.grade}학년 ${data.classNum}반` : ''} `}</SubLabel>
                     </StatusTitle>
                     <StatusBox>
                         <StatesInnerBox>
@@ -299,9 +319,9 @@ export default function VoteResult(info = null) {
                             </StatusGrid>
                             <CandidateList>
                                 {data.candidates.map((c, idx) => (
-                                    <CandidateRow key={c.number}>
+                                    <CandidateRow key={c.number || idx}>
                                         <CandidateInfo>
-                                            <CandidateName>{c.number}. {c.names}</CandidateName>
+                                            <CandidateName>{idx+1}. {c.names}</CandidateName>
                                             <VoteCount>{c.votes}표</VoteCount>
                                         </CandidateInfo>
                                         <BarWrap>
@@ -313,13 +333,15 @@ export default function VoteResult(info = null) {
                                 ))}
                             </CandidateList>
                         </StatesInnerBox>
-                        {userData.type == 'teacher' ? <ManagementBtnBox>
-                            <ManagementBtn onClick={() => { window.location.href = `/vote/management?type=${data.type}&year=${data.year}${data.type == 'class' ? `&semester=${data.semester}&grade=${data.grade}&class=${data.class}` : null }`}}>
-                                관리하기
-                            </ManagementBtn>
-                        </ManagementBtnBox>
-                            : null}
-
+                        {userData && userData.type === 'teacher' ? (
+                            <ManagementBtnBox>
+                                <ManagementBtn onClick={() => {
+                                    window.location.href = `/vote/management?type=${data.type}&year=${data.year}${data.type === 'class' ? `&semester=${data.semester}&grade=${data.grade}&class=${data.classNum}` : ''}`;
+                                }}>
+                                    관리하기
+                                </ManagementBtn>
+                            </ManagementBtnBox>
+                        ) : null}
                     </StatusBox>
                 </States>
             );
@@ -337,11 +359,12 @@ export default function VoteResult(info = null) {
                     </BackButton>
                     <Title style={{ width: "70%", position: 'absolute', left: "50%", transform: "translateX(-50%)" }}>투표 상황 및 결과</Title>
                 </TopBox>
-                {renderVotes()}
+                {voteStatusList.length > 0 ? renderVotes() : !loading && <div>데이터가 없습니다.</div>}
             </Main>
             <Footer />
         </Page>
     );
 }
+
 
 // function

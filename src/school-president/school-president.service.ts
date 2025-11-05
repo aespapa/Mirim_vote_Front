@@ -1,11 +1,11 @@
-  // school-president.service.ts
+// school-president.service.ts
 import { Injectable } from '@nestjs/common';
 import { FirebaseService } from '../firebase/firebase.service';
 import { SchoolPresidentCandidate } from './interfaces/school.interface';
 import * as admin from 'firebase-admin';
 @Injectable()
 export class SchoolPresidentService {
-  constructor(private readonly firebase: FirebaseService) {}
+  constructor(private readonly firebase: FirebaseService) { }
 
   // 후보 추가
   async addPresident(data: Omit<SchoolPresidentCandidate, 'id' | 'count'>) {
@@ -20,6 +20,18 @@ export class SchoolPresidentService {
     return { list: snapshot.docs.map(doc => ({ number: doc.id, ...doc.data() })) };
   }
 
+  //모든 후보 조회
+  async getAllPresidents() {
+    const ref = this.firebase.db.collection('school-president-candidates');
+    const snapshot = await ref.get();
+    const list: admin.firestore.DocumentData[] = [];
+
+    snapshot.forEach((doc) => {
+      list.push(doc.data());
+    });
+    return { list };
+  }
+
   // 개표 결과 조회(득표수 포함)
   async getResults(year: number) {
     const snapshot = await this.firebase.db.collection('school-president-candidates')
@@ -32,6 +44,8 @@ export class SchoolPresidentService {
     await this.firebase.db.collection('school-president-candidates').doc(number).update(update);
     return true;
   }
+
+  // 후보에 투표하면 count를 1 증가
   async voteCandidate(id: string): Promise<void> {
     await this.firebase.db
       .collection('school-president-candidates')

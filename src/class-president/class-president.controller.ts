@@ -6,13 +6,12 @@ import { UpdateClassPresidentDto } from './dto/update-class.dto';
 import { TeacherGuard } from '../Teacher';
 @Controller('apivoteclass-president')
 export class ClassPresidentController {
-  constructor(private readonly service: ClassPresidentService) {}
+  constructor(private readonly service: ClassPresidentService) { }
 
   @Post() // 후보 추가 (선생님 전용)
   @UseGuards(TeacherGuard)
   async create(@Body() dto: CreateClassPresidentDto) {
-    await this.service.addPresident(dto);
-    return { success: true };
+    return { success: await this.service.addPresident(dto) };
   }
 
   @Get() // 후보 리스트 조회 (모두 접근 가능)
@@ -23,7 +22,13 @@ export class ClassPresidentController {
     @Query('class') classNum: number,
   ) {
     const list = await this.service.getPresidents(Number(year), Number(semester), Number(grade), Number(classNum));
-    return { list };
+    // console.log(list);
+    return list;
+  }
+
+  @Get('all')
+  async all() {
+    return await this.service.getAllPresidents();
   }
 
   @Post(':id/vote') // 투표: 학생도 호출 가능

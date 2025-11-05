@@ -6,7 +6,7 @@ import { TeacherGuard } from '../Teacher';
 
 @Controller('apivoteschool-president')
 export class SchoolPresidentController {
-  constructor(private readonly schoolPresidentService: SchoolPresidentService) {}
+  constructor(private readonly schoolPresidentService: SchoolPresidentService) { }
 
   @Post() // 후보 추가 (선생님 전용)
   @UseGuards(TeacherGuard)
@@ -18,6 +18,11 @@ export class SchoolPresidentController {
   @Get() // 후보 리스트 조회 (모두 접근 가능)
   async list(@Query('year') year: number) {
     return await this.schoolPresidentService.getPresidents(Number(year));
+  }
+
+  @Get('all')
+  async all() {
+    return await this.schoolPresidentService.getAllPresidents();
   }
 
   @Get('result') // 개표 결과 조회 (count 포함, 모두 접근 가능)

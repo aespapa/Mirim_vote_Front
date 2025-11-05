@@ -12,13 +12,22 @@ export class ElectionSettingsService {
     return this.firebase.db.collection('election-settings');
   }
 
-  async setSettings(dto: CreateElectionSettingsDto): Promise<void> {
-    await this.collection().doc(dto.electionId).set({
+    async setSettings(dto: CreateElectionSettingsDto): Promise<boolean> {
+    const docRef = this.collection().doc(dto.electionId);
+    const doc = await docRef.get();
+
+    if (doc.exists) {
+      return false; // Already exists
+    }
+
+    await docRef.set({
       electionId: dto.electionId,
       active: dto.active,
       voterCount: dto.voterCount,
       autoClose: dto.autoClose,
     }, { merge: true });
+
+    return true; // Successfully created
   }
 
   async getSettings(electionId: string): Promise<ElectionSettings | null> {
@@ -33,8 +42,15 @@ export class ElectionSettingsService {
     });
   }
 
-  // 시간 기반 자동종료 로직 제거: 서비스 내부에서 시간 저장/처리하지 않음
-  async processAutoClose(): Promise<string[]> {
-    return [];
+  async deleteSettings(electionId: string): Promise<boolean> {
+    const docRef = this.collection().doc(electionId);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return false; // Not found
+    }
+
+    await docRef.delete();
+    return true; // Successfully deleted
   }
 }

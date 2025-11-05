@@ -38,7 +38,8 @@ const Title = styled.p`
 const Info = styled.p`
     margin: 0;
     font-size: 16px;
-    margin-bottom: 5px;
+    margin-bottom: 35px;
+    margin-bottom: 35px;
     color: #444;
 `
 
@@ -69,7 +70,7 @@ const Box = styled.div`
 const PresentVote = styled.div`
 `
 
-    const VoteAddBtn = styled.div`
+const VoteAddBtn = styled.div`
         height: 150px;
         width: 150px;
         display: inline-flex;
@@ -119,11 +120,10 @@ const PresentVote = styled.div`
     `
 
 export default function VoteList({ list }) {
-    const now = new Date('2025-07-31T09:30:00'); // 테스트용 현재 시간;
-
     const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
     const initialAuthCheckDone = useRef(false);
+    const [active, setActive] = useState();
 
     useEffect(() => {
         if (initialAuthCheckDone.current) return;
@@ -145,39 +145,26 @@ export default function VoteList({ list }) {
     }, [])
 
     const renderVotes = (isFinished) => {
+        // console.log(typeof list);
         if (!Array.isArray(list)) return null;
 
-        return list.map(vote => {
-            // normalize finish to boolean to avoid type mismatches (string/number)
-            const finished = (vote.finish === true) || (String(vote.finish) === 'true') || (Number(vote.finish) === 1);
+        return list.map((vote, index) => {
+            const finished = vote.finish === true;
             if (finished !== isFinished) return null;
-
-            let isStarted;
-            let vote_time;
-
-            if (new Date(vote.vote_start) >= now) {
-                isStarted = false;
-                vote_time = new Date(vote.vote_start).toLocaleString();
-            } else {
-                isStarted = true;
-                vote_time = Math.floor((new Date(vote.vote_end) - now) / 1000 / 60);
-            }
-
-            const btnDisabled = !isStarted;
+            const btnDisabled = isFinished;
 
             let url_parameters = `&type=${vote.type}&year=${vote.year}`; // URL 파라미터
             if (vote.type === "class") {
-                url_parameters += `&semester=${vote.semester}&grade=${vote.grade}&class=${vote.class}`;
+                url_parameters += `&semester=${vote.semester}&grade=${vote.grade}&class=${vote.classNum}`;
             }
 
             const button_text = isFinished ? '결과 보기' : '투표하기';
-            const button_style = isStarted ? { backgroundColor: '#288157' } : { backgroundColor: '#666', cursor: 'not-allowed' };
+            const button_style = !isFinished ? { backgroundColor: '#288157' } : { backgroundColor: '#666', cursor: 'not-allowed' };
             return (
-                <VoteCard key={vote.id}>
+                <VoteCard key={index}>
                     <Box>
                         <Title>{vote.title}</Title>
-                        <Info>{vote.type === "class" ? `${vote.year}학년도 ${vote.grade}학년 ${vote.class}반` : `${vote.year}학년도`}</Info>
-                        <Time>{isStarted ? (isFinished ? `종료 : ${new Date(vote.vote_end).toLocaleString()}` : `남은 시간 : ${Math.floor(vote_time / 60)}시간 ${vote_time % 60}분`) : `시작 예정 : ${vote_time}`}</Time>
+                        <Info>{vote.type === "class" ? `${vote.year}학년도 ${vote.semester}학기` : `${vote.year}학년도`}</Info>
                     </Box>
                     <VoteButton style={button_style} onClick={() => { location.href = isFinished ? `/vote/result?${url_parameters}` : `/vote/${vote.type}-president?${url_parameters}` }} disabled={btnDisabled}>
                         {button_text}
@@ -187,22 +174,22 @@ export default function VoteList({ list }) {
         });
     };
 
-    if (loading) 
+    if (loading)
         return; // 초기 렌더링 없이 대기
 
     return (
         <Container>
-            <Label>진행 및 예정된 선거</Label>
+            <Label>진행중인 선거</Label>
             <PresentVote>
-                    {renderVotes(false)}
-                    {userData.type == 'teacher'? (
-                        <VoteAddBtn onClick={() => { window.location.href = "/vote/add" }}>
-                            <div className="plus">
-                                <div className="bar horizontal" />
-                                <div className="bar vertical" />
-                            </div>
-                        </VoteAddBtn>
-                    ) : null}
+                {renderVotes(false)}
+                {userData.type == 'teacher' ? (
+                    <VoteAddBtn onClick={() => { window.location.href = "/vote/add" }}>
+                        <div className="plus">
+                            <div className="bar horizontal" />
+                            <div className="bar vertical" />
+                        </div>
+                    </VoteAddBtn>
+                ) : null}
             </PresentVote>
             <Label>종료된 선거</Label>
             {renderVotes(true)}

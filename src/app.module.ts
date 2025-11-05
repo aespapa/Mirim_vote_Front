@@ -16,16 +16,18 @@ import { ElectionSettingsModule } from './election-settings/election-settings.mo
 
 
 @Module({
-  imports: [ServeStaticModule.forRoot({
-    rootPath: join(__dirname, '..', 'static','client','dist'), // 정적 파일 경로 설정
-    exclude: ['/api/(.*)'], // API 경로는 제외
-  }),
+  imports: [
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', 'MirimVote', 'dist'),
+      exclude: ['/apivote*'],
+    }),
     AuthModule,
     ClassPresidentModule,
     SchoolPresidentModule,
     FirebaseModule,
-    ElectionSettingsModule],
-  controllers: [ AuthController, SchoolPresidentController, ClassPresidentController],
-  providers: [ AuthService, ClassPresidentService, SchoolPresidentService, FirebaseService],
+    ElectionSettingsModule,
+  ],
+  controllers: [AuthController, SchoolPresidentController, ClassPresidentController],
+  providers: [AuthService, ClassPresidentService, SchoolPresidentService, FirebaseService],
 })
 export class AppModule {}

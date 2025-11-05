@@ -12,8 +12,4 @@ export class CreateElectionSettingsDto {
 
   @IsBoolean()
   autoClose: boolean;
-
-  @IsOptional()
-  @IsISO8601()
-  autoCloseAt?: string;
 }

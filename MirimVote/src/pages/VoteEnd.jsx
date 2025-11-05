@@ -55,5 +55,5 @@ export default function VoteEnd() {
 }
 
 function handleGoHome() {
-    window.location.href = "/";
+    window.location.href = "/dashboard";
 }

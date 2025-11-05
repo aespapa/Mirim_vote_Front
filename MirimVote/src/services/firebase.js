@@ -9,6 +9,7 @@ const provider = new GoogleAuthProvider();
 async function getUser(uid) {
     if (!uid) {
         window.location.href = '/';
+        alert("다시 로그인 부탁드립니다.")
         return null;
     }
     try {
